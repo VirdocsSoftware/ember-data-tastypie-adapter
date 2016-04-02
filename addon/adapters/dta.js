@@ -33,8 +33,8 @@ export default DS.RESTAdapter.extend({
   */
   defaultSerializer: '-django-tastypie',
 
-  buildURL: function(modelName, id, snapshot, requestType) {
-    var url = this._super(modelName, id, snapshot, requestType);
+  buildURL: function(modelName, id, snapshot, requestType, query) {
+    var url = this._super(modelName, id, snapshot, requestType, query);
     var serverDomain = this.get('serverDomain');
 
     // Add the trailing slash to avoid setting requirement in Django.settings
@@ -51,12 +51,12 @@ export default DS.RESTAdapter.extend({
   },
 
   findMany: function(store, type, ids) {
-    return this.ajax(Ember.String.fmt('%@set/%@/', this.buildURL(type.typeKey), ids.join(';')),
+    return this.ajax(Ember.String.fmt('%@set/%@/', this.buildURL(type.modelName), ids.join(';')),
                      'GET');
   },
 
   _stripIDFromURL: function(store, snapshot) {
-      var url = this.buildURL(snapshot.typeKey, snapshot.id, snapshot);
+      var url = this.buildURL(snapshot.modelName, snapshot.id, snapshot);
 
       var expandedURL = url.split('/');
       //Case when the url is of the format ...something/:id
@@ -148,7 +148,7 @@ export default DS.RESTAdapter.extend({
       query = { offset: offsetParam };
     }
 
-    return this.ajax(this.buildURL(type.typeKey), 'GET', { data: query });
+    return this.ajax(this.buildURL(type.modelName), 'GET', { data: query });
   },
 
   removeTrailingSlash: function(url) {

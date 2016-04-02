@@ -1,26 +1,34 @@
 import DS from 'ember-data';
 import Ember from 'ember';
 
-export default DS.RESTSerializer.extend({
+export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
+
+  isNewSerializerAPI: true,
 
   keyForAttribute: function(attr) {
-    return Ember.String.decamelize(attr);
+    return Ember.String.underscore(attr);
   },
 
   keyForRelationship: function(key) {
     return Ember.String.decamelize(key);
   },
 
-  /**
-    Tastypie adapter does not support the sideloading feature
-    */
-  extract: function(store, typeClass, payload, id, requestType) {
-    this.extractMeta(store, typeClass.modelName, payload);
+  normalizeResponse: function (store, primaryModelClass, payload, id, requestType) {
+    let convertedPayload = {};
 
-    var specificExtract = "extract" + requestType.charAt(0).toUpperCase() + requestType.substr(1);
-    return this[specificExtract](store, typeClass, payload, id, requestType);
+    if (!Ember.isNone(payload) &&
+      payload.hasOwnProperty('meta') &&
+      payload.hasOwnProperty('objects')) {
+      convertedPayload[primaryModelClass.modelName] = JSON.parse(JSON.stringify(payload.objects));
+      delete payload.results;
+      convertedPayload['meta'] = JSON.parse(JSON.stringify(payload.meta));
+    } else {
+      //Ember.assert("Received objects array without meta", !payload.hasOwnProperty('objects'));
+      convertedPayload[primaryModelClass.modelName] = JSON.parse(JSON.stringify(payload));
+    }
+
+    return this._super(store, primaryModelClass, convertedPayload, id, requestType);
   },
-
   /**
     `extractMeta` is used to deserialize any meta information in the
     adapter payload. By default Ember Data expects meta information to
@@ -39,7 +47,7 @@ export default DS.RESTSerializer.extend({
     @param {subclass of DS.Model} typeClass
     @param {Object} payload
   */
-  extractMeta: function(store, typeClass, payload) {
+  extractMeta: function (store, typeClass, payload) {
     if (payload && payload.meta) {
       var adapter = store.adapterFor(typeClass);
 
@@ -47,8 +55,7 @@ export default DS.RESTSerializer.extend({
         payload.meta.since = payload.meta[adapter.get('since')];
       }
 
-      store.setMetadataFor(typeClass, payload.meta);
-      delete payload.meta;
+      return payload.meta;
     }
   },
 
@@ -74,7 +81,8 @@ export default DS.RESTSerializer.extend({
   sideload: function() {
   },
 
-  resourceUriToId: function (resourceUri) {
+  resourceUriToId: function (resource) {
+    var resourceUri = typeof resource === 'string' ? resource : resource.resource_uri;
     return resourceUri.split('/').reverse()[1];
   },
 
@@ -85,8 +93,9 @@ export default DS.RESTSerializer.extend({
     }
   },
 
-  normalizeRelationships: function (type, hash) {
-    var payloadKey, self = this;
+
+  extractRelationships: function (type, hash) {
+  var payloadKey, self = this;
 
     type.eachRelationship(function (key, relationship) {
       if (this.keyForRelationship) {
@@ -103,7 +112,7 @@ export default DS.RESTSerializer.extend({
           if (!isEmbedded) {
             Ember.assert(relationship.key + " is an async relation but the related data in the response is not a URI", typeof resourceUri === "string");
           }
-          hash[key] = self.resourceUriToId(hash[key]);
+            hash[key] = self.resourceUriToId(hash[key]);
         } else if (relationship.kind === 'hasMany'){
           var ids = [];
           hash[key].forEach(function (resourceUri){
@@ -116,23 +125,17 @@ export default DS.RESTSerializer.extend({
         }
       }
     }, this);
+
+    return this._super(type, hash);
   },
 
-  extractArray: function(store, typeClass, payload) {
-    var records = [];
-    payload.objects.forEach((hash) => {
-      this.extractEmbeddedFromPayload(store, typeClass, hash);
-      records.push(this.normalize(typeClass, hash, typeClass.typeKey));
-    });
-    return records;
+  normalizeArrayResponse: function(store, typeClass, payload) {
+    return this.normalizeArray(store, typeClass.modelName, payload[typeClass.modelName]);
   },
 
-  extractSingle: function(store, typeClass, payload, id, requestType) {
-    var newPayload = {};
+  normalizeSingleResponse: function(store, typeClass, payload, id, requestType) {
     this.extractEmbeddedFromPayload(store, typeClass, payload);
-    newPayload[typeClass.modelName] = payload;
-
-    return this._super(store, typeClass, newPayload, id, requestType);
+    return this._super(store, typeClass, payload, id, requestType);
   },
 
   isEmbedded: function(relationship) {
@@ -220,7 +223,7 @@ export default DS.RESTSerializer.extend({
     data = serializer.normalize(embeddedType, data, embeddedType.modelName);
     payload[key] = serializer.relationshipToResourceUri(relationship, data, store);
 
-    store.push(embeddedType, data);
+    store.push(embeddedType.modelName, data);
   },
 
   relationshipToResourceUri: function (relationship, value, store){
