@@ -49,7 +49,7 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
   */
   extractMeta: function (store, typeClass, payload) {
     if (payload && payload.meta) {
-      var adapter = store.adapterFor(typeClass);
+      var adapter = store.adapterFor(typeClass.modelName);
 
       if (adapter && adapter.get('since') !== null && payload.meta[adapter.get('since')] !== undefined) {
         payload.meta.since = payload.meta[adapter.get('since')];
@@ -96,7 +96,6 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
 
   extractRelationships: function (type, hash) {
   var payloadKey, self = this;
-
     type.eachRelationship(function (key, relationship) {
       if (this.keyForRelationship) {
         payloadKey = this.keyForRelationship(key, relationship.kind);
@@ -129,8 +128,16 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
     return this._super(type, hash);
   },
 
-  normalizeArrayResponse: function(store, typeClass, payload) {
-    return this.normalizeArray(store, typeClass.modelName, payload[typeClass.modelName]);
+  normalizeArrayResponse: function (store, typeClass, payload, id, requestType) {
+    this.extractEmbeddedFromArray(store, typeClass, payload);
+    return this._super(store, typeClass, payload, id, requestType);
+  },
+
+  extractEmbeddedFromArray: function (store, typeClass, payload) {
+    var self = this;
+    payload[typeClass.modelName].forEach(function (data) {
+      self.extractEmbeddedFromPayload(store, typeClass, data);
+    });
   },
 
   normalizeSingleResponse: function(store, typeClass, payload, id, requestType) {
@@ -167,9 +174,9 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
 
       if (self.isEmbedded(relationship)) {
         if (relationship.kind === 'hasMany') {
-          self.extractEmbeddedFromHasMany(store, key, relationship, payload, config);
+          self.extractEmbeddedFromHasMany(store, key, relationship, payload, type, config);
         } else if (relationship.kind === 'belongsTo') {
-          self.extractEmbeddedFromBelongsTo(store, key, relationship, payload, config);
+          self.extractEmbeddedFromBelongsTo(store, key, relationship, payload, type, config);
         }
       }
     });
@@ -194,13 +201,13 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
       data = serializer.normalize(embeddedType, data, embeddedType.modelName);
 
       ids.push(serializer.relationshipToResourceUri(relationship, data, store));
-      store.push(embeddedType.modelName, data);
+      store.push(data);
     });
 
     payload[key] = ids;
   },
 
-  extractEmbeddedFromBelongsTo: function(store, key, relationship, payload, config) {
+  extractEmbeddedFromBelongsTo: function(store, key, relationship, payload, type, config) {
     var serializer = store.serializerFor(relationship.type);
 
     key = config.key ? config.key : this.keyForAttribute(key);
@@ -222,8 +229,7 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
 
     data = serializer.normalize(embeddedType, data, embeddedType.modelName);
     payload[key] = serializer.relationshipToResourceUri(relationship, data, store);
-
-    store.push(embeddedType.modelName, data);
+    store.push(data);
   },
 
   relationshipToResourceUri: function (relationship, value, store){
