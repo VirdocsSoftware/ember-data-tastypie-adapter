@@ -200,7 +200,7 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
 
       data = serializer.normalize(embeddedType, data, embeddedType.modelName);
 
-      ids.push(serializer.relationshipToResourceUri(relationship, data, store));
+      ids.push(serializer.relationshipToResourceUri(relationship, data.data, store));
       store.push(data);
     });
 
