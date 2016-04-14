@@ -155,7 +155,7 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
     }
 
     // Consider the resource as embedded if the relationship is not async
-    return !(relationship.options.async ? relationship.options.async : false);
+    return !(relationship.options.hasOwnProperty('async') ? relationship.options.async : true);
   },
 
   isResourceUri: function(adapter, payload) {
@@ -228,8 +228,8 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
     serializer.extractEmbeddedFromPayload(store, embeddedType, data);
 
     data = serializer.normalize(embeddedType, data, embeddedType.modelName);
-    payload[key] = serializer.relationshipToResourceUri(relationship, data, store);
     store.push(data);
+    payload[key] = serializer.relationshipToResourceUri(relationship, data.data, store);
   },
 
   relationshipToResourceUri: function (relationship, value, store){

@@ -49,6 +49,30 @@ export default DS.RESTAdapter.extend({
 
     return url;
   },
+/*
+
+  urlForFindRecord(id, modelName, snapshot) {
+    let url = this._super(...arguments);
+    let query = Ember.get(snapshot, 'adapterOptions.query');
+    if (query) {
+      url += '?' + Ember.$.param(query); // assumes no query params are present already
+    }
+
+    var serverDomain = this.get('serverDomain');
+
+    // Add the trailing slash to avoid setting requirement in Django.settings
+    if (url.charAt(url.length - 1) !== '/') {
+      url += '/';
+    }
+
+    // Add the server domain if any
+    if (!!serverDomain) {
+      url = this.removeTrailingSlash(serverDomain) + url;
+    }
+
+    return url;
+  },
+*/
 
   findMany: function(store, type, ids) {
     return this.ajax(Ember.String.fmt('%@set/%@/', this.buildURL(type.modelName), ids.join(';')),
