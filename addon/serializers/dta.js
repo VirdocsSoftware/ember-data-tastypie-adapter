@@ -99,19 +99,15 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
     type.eachRelationship(function (key, relationship) {
       if (this.keyForRelationship) {
         payloadKey = this.keyForRelationship(key, relationship.kind);
-        if (key !== payloadKey) {
-          hash[key] = hash[payloadKey];
-          delete hash[payloadKey];
-        }
       }
-      if (hash[key]) {
+      if (hash[payloadKey]) {
         var isEmbedded = self.isEmbedded(relationship);
         if (relationship.kind === 'belongsTo'){
-          var resourceUri = hash[key];
+          var resourceUri = hash[payloadKey];
           if (!isEmbedded) {
             Ember.assert(relationship.key + " is an async relation but the related data in the response is not a URI", typeof resourceUri === "string");
           }
-            hash[key] = self.resourceUriToId(hash[key]);
+            hash[payloadKey] = self.resourceUriToId(resourceUri);
         } else if (relationship.kind === 'hasMany'){
           var ids = [];
           hash[key].forEach(function (resourceUri){
