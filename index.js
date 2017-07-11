@@ -4,9 +4,8 @@
 module.exports = {
   name: 'ember-data-tastypie-adapter',
   included: function(app) {
-
-  },
-  isDevelopingAddon: function(){
-    return true;
+    if (app.env !== 'production') {
+      app.import(app.bowerDirectory + '/jquery-mockjax/jquery.mockjax.js');
+    }
   }
 };
