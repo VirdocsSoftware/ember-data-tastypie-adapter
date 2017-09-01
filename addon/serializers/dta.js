@@ -267,6 +267,11 @@ export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
       } else {
         var relationData = snapshot.hasMany(relationship.key);
 
+        //breaking change in ember data 2.14 -- if no records exist for relationship, snapshot.hasMany returns undefined
+        if (!relationData){
+          relationData = [];
+        }
+
         // We can't deal with promises here. We need actual data
         if (relationData instanceof DS.PromiseArray) {
           // We need the content of the promise. Make sure it is fulfilled
